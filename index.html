@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CyberSnake 2077 // Retro Arcade by Aryan Pandya</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+      color: #f8fafc;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    #arcade-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #090d16;
+      border: 2px solid #00f5d4;
+      border-radius: 12px;
+      box-shadow: 0 0 25px rgba(0, 245, 212, 0.35), inset 0 0 15px rgba(0, 245, 212, 0.15);
+      padding: 16px;
+      max-width: 95vw;
+    }
+    .header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #1e293b;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 16px;
+      font-weight: 900;
+      color: #00f5d4;
+      text-shadow: 0 0 8px rgba(0, 245, 212, 0.7);
+      letter-spacing: 1px;
+    }
+    .stats-bar {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+    }
+    .stat-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .stat-label {
+      font-size: 10px;
+      color: #94a3b8;
+    }
+    .stat-val {
+      font-size: 14px;
+      font-weight: bold;
+      color: #ff0080;
+      text-shadow: 0 0 6px rgba(255, 0, 128, 0.6);
+    }
+    #game-canvas {
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      display: block;
+      box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
+    }
+    /* Mobile Touch Controls */
+    #touch-controls {
+      display: none;
+      margin-top: 14px;
+      width: 100%;
+      max-width: 260px;
+      grid-template-columns: repeat(3, 1fr);
+      grid-gap: 8px;
+    }
+    @media (max-width: 768px) {
+      #touch-controls {
+        display: grid;
+      }
+    }
+    .d-btn {
+      background: #1e293b;
+      border: 1px solid #00f5d4;
+      color: #00f5d4;
+      font-size: 20px;
+      font-weight: bold;
+      padding: 14px 0;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 6px rgba(0, 245, 212, 0.2);
+    }
+    .d-btn:active {
+      background: #00f5d4;
+      color: #090d16;
+    }
+    .footer-bar {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #64748b;
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+    }
+    .footer-bar a {
+      color: #00f5d4;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="arcade-container">
+    <div class="header">
+      <div class="title">🕹️ CYBER-SNAKE 2077</div>
+      <div class="stats-bar">
+        <div class="stat-box">
+          <span class="stat-label">SCORE</span>
+          <span class="stat-val" id="score">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">HIGH</span>
+          <span class="stat-val" id="high-score" style="color: #ffb703;">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">LEVEL</span>
+          <span class="stat-val" id="level" style="color: #00f5d4;">1</span>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="game-canvas" width="480" height="360"></canvas>
+
+    <div id="touch-controls">
+      <div></div>
+      <button class="d-btn" id="btn-up">▲</button>
+      <div></div>
+      <button class="d-btn" id="btn-left">◀</button>
+      <button class="d-btn" id="btn-down">▼</button>
+      <button class="d-btn" id="btn-right">▶</button>
+    </div>
+
+    <div class="footer-bar">
+      <span>Controls: [Arrow Keys / WASD / Swipe]</span>
+      <span>Engineered by <a href="https://github.com/Aryan-136" target="_blank">Aryan Pandya</a></span>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const highScoreEl = document.getElementById('high-score');
+    const levelEl = document.getElementById('level');
+
+    // Responsive Canvas Resizing for Mobile
+    function resizeCanvas() {
+      const maxWidth = Math.min(window.innerWidth - 48, 520);
+      const scale = maxWidth / 520;
+      canvas.style.width = maxWidth + 'px';
+      canvas.style.height = (maxWidth * 0.75) + 'px';
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    const GRID_SIZE = 20;
+    const COLS = canvas.width / GRID_SIZE;
+    const ROWS = canvas.height / GRID_SIZE;
+
+    let snake = [{x: 8, y: 8}, {x: 7, y: 8}, {x: 6, y: 8}];
+    let dir = {x: 1, y: 0};
+    let nextDir = {x: 1, y: 0};
+    let food = {x: 15, y: 10, type: 'normal'};
+    let score = 0;
+    let highScore = localStorage.getItem('cybersnake_high') || 0;
+    highScoreEl.innerText = highScore;
+    let level = 1;
+    let speed = 110;
+    let gameLoop = null;
+    let particles = [];
+    let state = 'RUNNING'; // 'RUNNING', 'OVER'
+
+    // Web Audio Synthesizer (Zero asset dependencies)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(freq, type, duration) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch(e) {}
+    }
+
+    function spawnFood() {
+      let valid = false;
+      while (!valid) {
+        food.x = Math.floor(Math.random() * COLS);
+        food.y = Math.floor(Math.random() * ROWS);
+        valid = !snake.some(seg => seg.x === food.x && seg.y === food.y);
+      }
+      food.type = Math.random() < 0.25 ? 'golden' : 'normal';
+    }
+
+    function addParticles(x, y, color) {
+      for (let i = 0; i < 12; i++) {
+        particles.push({
+          x: x * GRID_SIZE + GRID_SIZE/2,
+          y: y * GRID_SIZE + GRID_SIZE/2,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          radius: Math.random() * 3 + 1,
+          color: color,
+          alpha: 1,
+          life: 20
+        });
+      }
+    }
+
+    function update() {
+      if (state !== 'RUNNING') return;
+
+      dir = nextDir;
+      const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+
+      // Wall Wrap-around (Toroidal Grid)
+      if (head.x < 0) head.x = COLS - 1;
+      if (head.x >= COLS) head.x = 0;
+      if (head.y < 0) head.y = ROWS - 1;
+      if (head.y >= ROWS) head.y = 0;
+
+      // Self collision
+      if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
+        state = 'OVER';
+        playBeep(120, 'sawtooth', 0.5);
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('cybersnake_high', highScore);
+          highScoreEl.innerText = highScore;
+        }
+        return;
+      }
+
+      snake.unshift(head);
+
+      // Food check
+      if (head.x === food.x && head.y === food.y) {
+        const pts = food.type === 'golden' ? 50 : 10;
+        score += pts;
+        scoreEl.innerText = score;
+        addParticles(food.x, food.y, food.type === 'golden' ? '#ffb703' : '#00f5d4');
+        playBeep(food.type === 'golden' ? 880 : 540, 'triangle', 0.15);
+        
+        level = Math.floor(score / 50) + 1;
+        levelEl.innerText = level;
+        speed = Math.max(60, 110 - (level * 4));
+        clearInterval(gameLoop);
+        gameLoop = setInterval(gameStep, speed);
+
+        spawnFood();
+      } else {
+        snake.pop();
+      }
+    }
+
+    function draw() {
+      // Clear with slight trail effect
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw faint cyber grid
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += GRID_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += GRID_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // Draw Particles
+      particles.forEach((p, idx) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.05;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        if (p.alpha <= 0) particles.splice(idx, 1);
+      });
+
+      // Draw Food
+      ctx.save();
+      if (food.type === 'golden') {
+        ctx.fillStyle = '#ffb703';
+        ctx.shadowColor = '#ffb703';
+        ctx.shadowBlur = 15;
+      } else {
+        ctx.fillStyle = '#00f5d4';
+        ctx.shadowColor = '#00f5d4';
+        ctx.shadowBlur = 10;
+      }
+      ctx.beginPath();
+      ctx.roundRect(food.x * GRID_SIZE + 2, food.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4, 4);
+      ctx.fill();
+      ctx.restore();
+
+      // Draw Snake
+      snake.forEach((seg, i) => {
+        ctx.save();
+        if (i === 0) {
+          ctx.fillStyle = '#00f5d4';
+          ctx.shadowColor = '#00f5d4';
+          ctx.shadowBlur = 12;
+        } else {
+          // Gradient Body Segments
+          const hue = 160 + (i * 7);
+          ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
+        }
+        ctx.beginPath();
+        ctx.roundRect(seg.x * GRID_SIZE + 1.5, seg.y * GRID_SIZE + 1.5, GRID_SIZE - 3, GRID_SIZE - 3, 5);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Game Over Screen
+      if (state === 'OVER') {
+        ctx.save();
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#ff0080';
+        ctx.font = 'bold 28px Courier New';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#ff0080';
+        ctx.shadowBlur = 15;
+        ctx.fillText('CRITICAL OVERHEAT // GAME OVER', canvas.width / 2, canvas.height / 2 - 20);
+
+        ctx.fillStyle = '#00f5d4';
+        ctx.font = '16px Courier New';
+        ctx.shadowBlur = 5;
+        ctx.fillText(`FINAL SCORE: ${score}  |  LEVEL: ${level}`, canvas.width / 2, canvas.height / 2 + 15);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '13px Courier New';
+        ctx.fillText('Press [SPACE] or Tap Screen to Reboot', canvas.width / 2, canvas.height / 2 + 55);
+        ctx.restore();
+      }
+    }
+
+    function gameStep() {
+      update();
+      draw();
+    }
+
+    function resetGame() {
+      snake = [{x: 8, y: 8}, {x: 7, y: 8}, {x: 6, y: 8}];
+      dir = {x: 1, y: 0};
+      nextDir = {x: 1, y: 0};
+      score = 0;
+      scoreEl.innerText = score;
+      level = 1;
+      levelEl.innerText = level;
+      speed = 110;
+      state = 'RUNNING';
+      spawnFood();
+      clearInterval(gameLoop);
+      gameLoop = setInterval(gameStep, speed);
+    }
+
+    // Keyboard controls
+    window.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.code === 'Space') {
+        if (state === 'OVER') resetGame();
+        return;
+      }
+      if (['ArrowUp', 'KeyW'].includes(e.code) && dir.y === 0) nextDir = {x: 0, y: -1};
+      if (['ArrowDown', 'KeyS'].includes(e.code) && dir.y === 0) nextDir = {x: 0, y: 1};
+      if (['ArrowLeft', 'KeyA'].includes(e.code) && dir.x === 0) nextDir = {x: -1, y: 0};
+      if (['ArrowRight', 'KeyD'].includes(e.code) && dir.x === 0) nextDir = {x: 1, y: 0};
+    });
+
+    // Touch Button handlers
+    document.getElementById('btn-up').onclick = () => { if (dir.y === 0) nextDir = {x: 0, y: -1}; };
+    document.getElementById('btn-down').onclick = () => { if (dir.y === 0) nextDir = {x: 0, y: 1}; };
+    document.getElementById('btn-left').onclick = () => { if (dir.x === 0) nextDir = {x: -1, y: 0}; };
+    document.getElementById('btn-right').onclick = () => { if (dir.x === 0) nextDir = {x: 1, y: 0}; };
+    canvas.onclick = () => { if (state === 'OVER') resetGame(); };
+
+    // Swipe controls for Mobile
+    let touchStartX = 0;
+    let touchStartY = 0;
+    canvas.addEventListener('touchstart', e => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      if (state === 'OVER') resetGame();
+    }, {passive: true});
+
+    canvas.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 30 && dir.x === 0) nextDir = {x: 1, y: 0};
+        else if (dx < -30 && dir.x === 0) nextDir = {x: -1, y: 0};
+      } else {
+        if (dy > 30 && dir.y === 0) nextDir = {x: 0, y: 1};
+        else if (dy < -30 && dir.y === 0) nextDir = {x: 0, y: -1};
+      }
+    }, {passive: true});
+
+    spawnFood();
+    gameLoop = setInterval(gameStep, speed);
+  </script>
+</body>
+</html>
